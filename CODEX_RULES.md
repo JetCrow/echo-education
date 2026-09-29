@@ -1,78 +1,93 @@
-# Codex Working Rules
+# Правила работы Codex
 
-These rules are mandatory for all Codex tasks in this repository.
+Эти правила обязательны для всех задач Codex в этом репозитории.
+
+## Язык общения
+
+- Общайся с пользователем **на русском языке**.
+- План изменений, промежуточные сообщения и итоговый отчёт пиши на русском.
+- Текст интерфейса приложения меняй только по требованиям конкретной задачи.
 
 ## Scope
 
-1. Implement **only** the explicitly requested task.
-2. Do not expand scope.
-3. Do not implement future features.
-4. Do not redesign unrelated UI.
-5. Do not refactor unrelated code.
-6. Do not change architecture without explicit approval.
+1. Реализуй **только** явно поставленную задачу.
+2. Не расширяй scope.
+3. Не реализуй будущие функции.
+4. Не переделывай несвязанный интерфейс.
+5. Не рефактори несвязанный код.
+6. Не меняй архитектуру без явного разрешения.
 
-## Before coding
+## Перед началом работы
 
-Before making changes:
+Перед изменениями:
 
-1. Read:
+1. Прочитай:
    - `README.md`
    - `MVP.md`
    - `ARCHITECTURE.md`
    - `CODEX_RULES.md`
-2. State which files you intend to modify.
-3. State whether any new dependency is required.
-4. If the task conflicts with current architecture or scope, stop and report the conflict.
+2. Напиши, какие файлы собираешься изменить.
+3. Напиши, нужны ли новые зависимости.
+4. Если задача конфликтует с текущей архитектурой или scope, остановись и сообщи об этом.
 
-## Dependencies
+## Зависимости
 
-- Do not add packages unless the requested task requires them.
-- Prefer the existing stack.
-- Do not replace libraries merely because another approach is cleaner or more familiar.
+- Не добавляй пакеты, если они не нужны для конкретной задачи.
+- Используй существующий стек.
+- Не заменяй библиотеки только потому, что другой вариант кажется чище или привычнее.
 
-## Changes
+## Изменения
 
-- Touch only files required for the current task.
-- Preserve working behavior outside the requested change.
-- Do not perform opportunistic cleanup.
-- Do not rename files, components, routes, or variables unrelated to the task.
+- Трогай только файлы, необходимые для текущей задачи.
+- Сохраняй рабочее поведение вне текущей задачи.
+- Не делай попутную «чистку».
+- Не переименовывай несвязанные файлы, компоненты, маршруты и переменные.
 
-## Problems discovered during work
+## Если заметил другую проблему
 
-If you discover an unrelated bug, improvement, or architectural concern:
+Если обнаружил несвязанный баг, улучшение или архитектурный вопрос:
 
-- do not fix it;
-- report it separately in the task summary.
+- не исправляй его;
+- укажи отдельно в итоговом отчёте.
 
-## Validation
+## Проверка
 
-After completing the requested change, run all applicable checks:
+После завершения задачи выполни все применимые проверки:
 
-- lint
-- typecheck
-- tests, if present
-- production build
+- lint;
+- typecheck;
+- tests, если есть;
+- production build.
 
-Report the result of each check.
+После этого, если задача создаёт или изменяет пользовательский интерфейс, **запусти приложение для ручной проверки**.
 
-## Completion report
+Для локального dev-сервера по умолчанию используй **порт 3100**, если он свободен. Если 3100 занят — выбери другой свободный порт и явно сообщи его.
 
-At the end of every task, provide:
+В финальном сообщении обязательно дай адрес проверки, например:
 
-1. files changed;
-2. exactly what changed;
-3. dependencies added, if any;
-4. validation results;
-5. unrelated issues noticed but not changed.
+`http://localhost:3100`
 
-Then **stop**.
+Не останавливай dev-сервер до окончания текущей рабочей сессии, если среда позволяет оставить его запущенным.
 
-Do not continue with the next logical feature without explicit approval.
+## Итоговый отчёт
+
+В конце каждой задачи напиши:
+
+1. какие файлы изменены;
+2. что именно изменено;
+3. какие зависимости добавлены, если были;
+4. результаты lint/typecheck/tests/build;
+5. адрес запущенного приложения для ручного теста, если применимо;
+6. несвязанные проблемы, которые заметил, но не исправлял.
+
+После этого **остановись**.
+
+Не переходи к следующей логичной функции без явного разрешения.
 
 ## Git workflow
 
-Each approved task should result in a small, reviewable commit.
+Каждая утверждённая задача должна давать маленький проверяемый commit.
 
-Commit messages should describe the single task performed.
+Сообщение commit должно описывать одну выполненную задачу.
 
-Avoid combining multiple features or unrelated fixes into one commit.
+Не объединяй несколько функций или несвязанных исправлений в один commit.
