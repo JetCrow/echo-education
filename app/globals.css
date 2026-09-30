@@ -41,6 +41,8 @@ button {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: 12px;
   border: 1px solid #d6d6d2;
   border-radius: 50%;
   background: #eeeeeb;
@@ -48,6 +50,23 @@ button {
   font-size: 24px;
   font-weight: 600;
   letter-spacing: 0.08em;
+}
+
+.avatarState {
+  font-size: 16px;
+  letter-spacing: normal;
+}
+
+.avatarPlaceholder[data-state="listening"] {
+  background: #e6f0eb;
+  border-color: #7b9f8b;
+  color: #345c46;
+}
+
+.avatarPlaceholder[data-state="speaking"] {
+  background: #e8edf7;
+  border-color: #8a9fc5;
+  color: #3f5680;
 }
 
 .intro {
@@ -89,6 +108,12 @@ button {
   border-color: #202124;
   background: #202124;
   color: #ffffff;
+}
+
+.actions button[aria-pressed="true"] {
+  background: #f5e8e6;
+  border-color: #b88980;
+  color: #793e33;
 }
 
 @media (max-width: 600px) {

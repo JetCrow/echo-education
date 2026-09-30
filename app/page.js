@@ -1,9 +1,33 @@
+"use client";
+
+import { useState } from "react";
+
+const stateLabels = {
+  idle: "Очікування",
+  listening: "Слухає",
+  speaking: "Говорить",
+};
+
 export default function Home() {
+  const [state, setState] = useState("idle");
+  const [isMuted, setIsMuted] = useState(false);
+
+  // Temporary UI preview: reuse the start button to switch active states.
+  function advanceState() {
+    setState((current) => current === "listening" ? "speaking" : "listening");
+  }
+
+  function endSession() {
+    setState("idle");
+    setIsMuted(false);
+  }
+
   return (
     <main className="page">
       <section className="panel">
-        <div className="avatarPlaceholder" aria-hidden="true">
-          AI
+        <div className="avatarPlaceholder" data-state={state} role="status">
+          <span>AI</span>
+          <span className="avatarState">{stateLabels[state]}</span>
         </div>
 
         <header className="intro">
@@ -12,13 +36,13 @@ export default function Home() {
         </header>
 
         <div className="actions">
-          <button type="button" className="primaryButton">
-            {"\u041f\u043e\u0447\u0430\u0442\u0438"}
+          <button type="button" className="primaryButton" onClick={advanceState}>
+            {state === "idle" ? "Почати" : state === "listening" ? "Показати мовлення" : "Показати слухання"}
           </button>
-          <button type="button">
-            {"\u0412\u0438\u043c\u043a\u043d\u0443\u0442\u0438 \u043c\u0456\u043a\u0440\u043e\u0444\u043e\u043d"}
+          <button type="button" aria-pressed={isMuted} onClick={() => setIsMuted((current) => !current)}>
+            {isMuted ? "Увімкнути мікрофон" : "Вимкнути мікрофон"}
           </button>
-          <button type="button">
+          <button type="button" onClick={endSession}>
             {"\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0438"}
           </button>
         </div>
