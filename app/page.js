@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const stateLabels = {
   idle: "Очікування",
@@ -16,21 +16,53 @@ export default function Home() {
   const streamRef = useRef(null);
   const requestRef = useRef(null);
 
-  useEffect(() => {
-    return () => {
-      requestRef.current = null;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    };
+  const releaseSession = useCallback(() => {
+    const request = requestRef.current;
+    requestRef.current = null;
+    if (request) {
+      clearTimeout(request.timeout);
+      request.controller.abort();
+      if (request.channel) {
+        request.channel.onclose = null;
+        request.channel.onerror = null;
+        request.channel.close();
+      }
+      if (request.peer) {
+        request.peer.ontrack = null;
+        request.peer.onconnectionstatechange = null;
+        request.peer.getReceivers().forEach(({ track }) => track?.stop());
+        request.peer.close();
+      }
+      if (request.audio) {
+        request.audio.pause();
+        request.audio.srcObject?.getTracks().forEach((track) => track.stop());
+        request.audio.srcObject = null;
+      }
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
   }, []);
 
-  async function startSession() {
-    if (streamRef.current || requestRef.current) return;
+  useEffect(() => releaseSession, [releaseSession]);
 
-    const request = {};
+  async function startSession() {
+    if (streamRef.current || requestRef.current) {
+      return;
+    }
+
+    const request = { controller: new AbortController() };
     requestRef.current = request;
     setIsStarting(true);
     setError("");
+
+    function fail(message = "Не вдалося підключитися. Спробуйте ще раз.") {
+      if (requestRef.current !== request) return;
+      releaseSession();
+      setIsStarting(false);
+      setIsMuted(false);
+      setState("idle");
+      setError(message);
+    }
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -47,18 +79,77 @@ export default function Home() {
 
       streamRef.current = stream;
       setIsMuted(false);
-      setState("listening");
+      request.timeout = setTimeout(() => {
+        fail();
+      }, 30000);
+
+      const tokenResponse = await fetch("/api/realtime-token", {
+        method: "POST",
+        signal: request.controller.signal,
+      });
+      if (requestRef.current !== request) return;
+      if (!tokenResponse.ok) throw new Error("Token request failed");
+      const { value, expires_at } = await tokenResponse.json();
+      if (requestRef.current !== request) return;
+      if (typeof value !== "string" || !value || !Number.isFinite(expires_at) || expires_at * 1000 <= Date.now()) {
+        throw new Error("Invalid client secret");
+      }
+
+      const peer = new RTCPeerConnection();
+      request.peer = peer;
+      const audio = new Audio();
+      request.audio = audio;
+      audio.autoplay = true;
+      peer.ontrack = (event) => {
+        if (requestRef.current !== request) {
+          event.track.stop();
+          return;
+        }
+        audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+        audio.play().catch(() => {
+          fail("Не вдалося відтворити звук. Спробуйте почати знову.");
+        });
+      };
+      peer.onconnectionstatechange = () => {
+        if (requestRef.current !== request) return;
+        if (peer.connectionState === "connected") {
+          clearTimeout(request.timeout);
+          setError("");
+          setIsStarting(false);
+          setState("listening");
+        } else if (["failed", "disconnected", "closed"].includes(peer.connectionState)) {
+          fail("З’єднання перервано. Спробуйте почати знову.");
+        }
+      };
+      stream.getAudioTracks().forEach((track) => peer.addTrack(track, stream));
+      request.channel = peer.createDataChannel("oai-events");
+      request.channel.onerror = () => fail();
+      request.channel.onclose = () => fail("З’єднання завершено. Спробуйте почати знову.");
+
+      const offer = await peer.createOffer();
+      if (requestRef.current !== request) return;
+      await peer.setLocalDescription(offer);
+      if (requestRef.current !== request) return;
+      const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${value}`,
+          "Content-Type": "application/sdp",
+        },
+        body: offer.sdp,
+        signal: request.controller.signal,
+      });
+      if (requestRef.current !== request) return;
+      if (!sdpResponse.ok) throw new Error("SDP request failed");
+      const sdp = await sdpResponse.text();
+      if (requestRef.current !== request) return;
+      await peer.setRemoteDescription({ type: "answer", sdp });
+      if (requestRef.current !== request) return;
     } catch (cause) {
       if (requestRef.current !== request) return;
-      setError(cause.name === "NotAllowedError"
+      fail(cause.name === "NotAllowedError"
         ? "Доступ до мікрофона заборонено. Дозвольте доступ і спробуйте ще раз."
-        : "Не вдалося увімкнути мікрофон. Перевірте його та спробуйте ще раз.");
-      setState("idle");
-    } finally {
-      if (requestRef.current === request) {
-        requestRef.current = null;
-        setIsStarting(false);
-      }
+        : "Не вдалося підключитися. Перевірте мікрофон і з’єднання та спробуйте ще раз.");
     }
   }
 
@@ -72,9 +163,7 @@ export default function Home() {
   }
 
   function endSession() {
-    requestRef.current = null;
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
+    releaseSession();
     setIsStarting(false);
     setError("");
     setState("idle");
@@ -96,7 +185,7 @@ export default function Home() {
 
         <div className="actions">
           <button type="button" className="primaryButton" onClick={startSession} disabled={isStarting || state !== "idle"}>
-            {isStarting ? "Очікування дозволу…" : "Почати"}
+            {isStarting ? "Підключення…" : "Почати"}
           </button>
           <button type="button" aria-pressed={isMuted} onClick={toggleMute} disabled={state === "idle"}>
             {isMuted ? "Увімкнути мікрофон" : "Вимкнути мікрофон"}
