@@ -23,6 +23,7 @@ export default function Home() {
       clearTimeout(request.timeout);
       request.controller.abort();
       if (request.channel) {
+        request.channel.onmessage = null;
         request.channel.onclose = null;
         request.channel.onerror = null;
         request.channel.close();
@@ -123,6 +124,32 @@ export default function Home() {
       };
       stream.getAudioTracks().forEach((track) => peer.addTrack(track, stream));
       request.channel = peer.createDataChannel("oai-events");
+      request.channel.onmessage = ({ data }) => {
+        if (requestRef.current !== request || peer.connectionState !== "connected" || typeof data !== "string") return;
+
+        let event;
+        try {
+          event = JSON.parse(data);
+        } catch {
+          return;
+        }
+        if (!event || typeof event.type !== "string") return;
+
+        switch (event.type) {
+          case "response.output_audio.delta":
+            setState("speaking");
+            break;
+          case "response.output_audio.done":
+          case "response.done":
+          case "input_audio_buffer.speech_started":
+          case "conversation.item.truncated":
+            setState("listening");
+            break;
+          case "error":
+            fail();
+            break;
+        }
+      };
       request.channel.onerror = () => fail();
       request.channel.onclose = () => fail("З’єднання завершено. Спробуйте почати знову.");
 
