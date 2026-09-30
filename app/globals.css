@@ -116,6 +116,18 @@ button {
   color: #793e33;
 }
 
+.actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.microphoneError {
+  margin: 0;
+  color: #793e33;
+  text-align: center;
+  line-height: 1.45;
+}
+
 @media (max-width: 600px) {
   .page {
     padding: 16px;
