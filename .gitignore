@@ -1,0 +1,27 @@
+node_modules/
+.next/
+.env*
+__pycache__/
+*.pyc
+
+# Local Python environments
+.venv/
+venv/
+*.pyo
+
+# Local caches (including HuggingFace)
+.cache/
+.huggingface/
+models--k2-fsa--OmniVoice/
+
+# Local OmniVoice model downloads
+/models/OmniVoice/
+/models/omnivoice/
+/local-voice/models/OmniVoice/
+/local-voice/models/omnivoice/
+
+# Model weights
+*.safetensors
+*.ckpt
+*.pth
+*.pt

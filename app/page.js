@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import TeacherAvatar from "./components/TeacherAvatar";
+import { AlinaVoice } from "./lib/alina-voice";
 
 const stateLabels = {
   idle: "Очікування",
   listening: "Слухає",
   speaking: "Говорить",
+  thinking: "Думає…",
 };
 
 export default function Home() {
@@ -13,6 +16,9 @@ export default function Home() {
   const [isMuted, setIsMuted] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState("");
+  const avatarRef = useRef(null);
+  const avatarError = useCallback(message => setError(message), []);
+  function changeState(next) { avatarRef.current?.setState(next); setState(next); }
   const streamRef = useRef(null);
   const requestRef = useRef(null);
 
@@ -22,6 +28,9 @@ export default function Home() {
     if (request) {
       clearTimeout(request.timeout);
       request.controller.abort();
+      request.voice?.dispose();
+      request.context?.close().catch(() => {});
+      avatarRef.current?.setState("idle");
       if (request.channel) {
         request.channel.onmessage = null;
         request.channel.onclose = null;
@@ -34,17 +43,16 @@ export default function Home() {
         request.peer.getReceivers().forEach(({ track }) => track?.stop());
         request.peer.close();
       }
-      if (request.audio) {
-        request.audio.pause();
-        request.audio.srcObject?.getTracks().forEach((track) => track.stop());
-        request.audio.srcObject = null;
-      }
+
     }
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }, []);
 
-  useEffect(() => releaseSession, [releaseSession]);
+  useEffect(() => {
+    window.addEventListener("pagehide", releaseSession);
+    return () => { window.removeEventListener("pagehide", releaseSession); releaseSession(); };
+  }, [releaseSession]);
 
   async function startSession() {
     if (streamRef.current || requestRef.current) {
@@ -61,16 +69,25 @@ export default function Home() {
       releaseSession();
       setIsStarting(false);
       setIsMuted(false);
-      setState("idle");
+      changeState("idle");
       setError(message);
     }
 
     try {
+      if (!avatarRef.current?.ready) { fail("Аватар ще завантажується. Спробуйте за кілька секунд."); return; }
+      request.context = new AudioContext();
+      await request.context.resume();
+      if (requestRef.current !== request) return;
+      const health = await fetch("/api/alina/synthesize", { signal: request.controller.signal });
+      if (requestRef.current !== request) return;
+      if (!health.ok) { fail("Запустіть локальний сервіс голосу Аліни (порт 8006)."); return; }
+      request.voice = new AlinaVoice({ context: request.context, avatar: avatarRef.current,
+        onState: next => { if(requestRef.current === request) changeState(next); }, onError: fail });
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Microphone unavailable");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
 
       // End or unmount may happen while the permission prompt is open.
       if (requestRef.current !== request) {
@@ -98,26 +115,15 @@ export default function Home() {
 
       const peer = new RTCPeerConnection();
       request.peer = peer;
-      const audio = new Audio();
-      request.audio = audio;
-      audio.autoplay = true;
-      peer.ontrack = (event) => {
-        if (requestRef.current !== request) {
-          event.track.stop();
-          return;
-        }
-        audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
-        audio.play().catch(() => {
-          fail("Не вдалося відтворити звук. Спробуйте почати знову.");
-        });
-      };
+      // Realtime returns text. Only local OmniVoice is allowed to play audio.
+      peer.ontrack = ({ track }) => track.stop();
       peer.onconnectionstatechange = () => {
         if (requestRef.current !== request) return;
         if (peer.connectionState === "connected") {
           clearTimeout(request.timeout);
           setError("");
           setIsStarting(false);
-          setState("listening");
+          changeState("listening");
         } else if (["failed", "disconnected", "closed"].includes(peer.connectionState)) {
           fail("З’єднання перервано. Спробуйте почати знову.");
         }
@@ -135,20 +141,8 @@ export default function Home() {
         }
         if (!event || typeof event.type !== "string") return;
 
-        switch (event.type) {
-          case "response.output_audio.delta":
-            setState("speaking");
-            break;
-          case "response.output_audio.done":
-          case "response.done":
-          case "input_audio_buffer.speech_started":
-          case "conversation.item.truncated":
-            setState("listening");
-            break;
-          case "error":
-            fail();
-            break;
-        }
+        if (event.type === "error") { fail(); return; }
+        request.voice.handle(event);
       };
       request.channel.onerror = () => fail();
       request.channel.onclose = () => fail("З’єднання завершено. Спробуйте почати знову.");
@@ -193,16 +187,16 @@ export default function Home() {
     releaseSession();
     setIsStarting(false);
     setError("");
-    setState("idle");
+    changeState("idle");
     setIsMuted(false);
   }
 
   return (
     <main className="page">
       <section className="panel">
-        <div className="avatarPlaceholder" data-state={state} role="status">
-          <span>AI</span>
-          <span className="avatarState">{stateLabels[state]}</span>
+        <div className="avatarGroup">
+          <TeacherAvatar playerRef={avatarRef} onError={avatarError} />
+          <p className="avatarState" role="status">{stateLabels[state]}</p>
         </div>
 
         <header className="intro">

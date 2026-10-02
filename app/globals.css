@@ -36,38 +36,11 @@ button {
   border-radius: 24px;
 }
 
-.avatarPlaceholder {
-  width: clamp(160px, 42vw, 240px);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 12px;
-  border: 1px solid #d6d6d2;
-  border-radius: 50%;
-  background: #eeeeeb;
-  color: #898984;
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.avatarState {
-  font-size: 16px;
-  letter-spacing: normal;
-}
-
-.avatarPlaceholder[data-state="listening"] {
-  background: #e6f0eb;
-  border-color: #7b9f8b;
-  color: #345c46;
-}
-
-.avatarPlaceholder[data-state="speaking"] {
-  background: #e8edf7;
-  border-color: #8a9fc5;
-  color: #3f5680;
-}
+.avatarGroup { display: grid; justify-items: center; gap: 12px; }
+.teacherAvatar { position: relative; width: min(330px, 65vw); aspect-ratio: 4 / 5; overflow: hidden; border-radius: 18px; background: #eee; }
+.teacherAvatar video, .teacherAvatar canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.teacherAvatar video { opacity: 0; pointer-events: none; }
+.avatarState { margin: 0; font-size: 16px; color: #606164; }
 
 .intro {
   text-align: center;
